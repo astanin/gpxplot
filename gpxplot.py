@@ -27,7 +27,7 @@ options:
 -E            use English units (metric units used by default)
 -g            plot using gnuplot.py if available or output gnuplot script
 -x var        plot var = { time | distance } against x-axis
--y var		  plot var = { elevation | velocity } against y-axis
+-y var        plot var = { elevation | velocity } against y-axis
 -o imagefile  save plot to image file (supported: PNG, JPG, EPS, SVG)
 """
 
@@ -161,7 +161,7 @@ def gen_gnuplot_script(trk,x,y,file=sys.stdout,metric=True,savefig=None):
 		ext=re.sub(r'.*\.','',savefig.lower())
 		if ext == 'png':
 			file.write("set terminal png; set output '%s';\n"%(savefig))
-		if ext in ['jpg','jpeg']:
+		elif ext in ['jpg','jpeg']:
 			file.write("set terminal jpeg; set output '%s';\n"%(savefig))
 		elif ext == 'eps':
 			file.write("set terminal post eps; set output '%s';\n"%(savefig))
