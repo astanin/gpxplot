@@ -29,12 +29,18 @@ options:
 -x var        plot var = { time | distance } against x-axis
 -y var        plot var = { elevation | velocity } against y-axis
 -o imagefile  save plot to image file (supported: PNG, JPG, EPS, SVG)
+-t tzname     use local timezone tzname (e.g. 'Europe/Mosow')
 """
 
 import sys
 import datetime
 import getopt
 from math import sqrt,sin,cos,asin,pi
+
+try:
+	import pytz
+except:
+	pass
 
 NS='{http://www.topografix.com/GPX/1/0}'
 dateformat='%Y-%m-%dT%H:%M:%SZ'
@@ -77,7 +83,7 @@ def distance(p1,p2):
 	dist=2*R*asin(sqrt(h))
 	return dist
 
-def read_gpx_trk(filename):
+def read_gpx_trk(filename,tzname=None):
 	try:
 		import xml.etree.ElementTree as ET
 	except:
@@ -105,7 +111,11 @@ def read_gpx_trk(filename):
 			lat=float(pt.attrib['lat'])
 			lon=float(pt.attrib['lon'])
 			time=pt.findtext(NS+'time')
-			if time: time=strptime(time,dateformat)
+			if time:
+				time=strptime(time,dateformat)
+				if tzname:
+					time=time.replace(tzinfo=pytz.utc)
+					time=time.astimezone(pytz.timezone(tzname))
 			ele=pt.findtext(NS+'ele')
 			if ele: ele=float(ele)
 			if prev_lat and prev_lon:
@@ -196,7 +206,8 @@ def main():
 	xvar=var_dist
 	yvar=var_ele
 	imagefile=None
-	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:',['help',])
+	tzname=None
+	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:t:',['help',])
 	except:
 		print __doc__
 		sys.exit(1)
@@ -224,12 +235,18 @@ def main():
 				sys.exit(1)
 		if o == '-o':
 			imagefile=a
+		if o == '-t':
+			if not globals().has_key('pytz'):
+				print 'pytz module is required to change timezone'
+				print __doc__
+				sys.exit(2)
+			tzname=a
 	if len(args) > 1:
 		print 'too many files given'
 		print __doc__
 		sys.exit(1)
 	file=args[0]
-	trk=read_gpx_trk(file)
+	trk=read_gpx_trk(file,tzname)
 	if gnuplot:
 		plot_in_gnuplot(trk,x=xvar,y=yvar,metric=metric,savefig=imagefile)
 	else:
