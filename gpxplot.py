@@ -18,18 +18,27 @@
 
 """usage: gpxplot.py [options] track.gpx
 
-Generate tabular track data suitable for plotting. Calculate total distance
-and velocity using the haversine formular (spherical earth). Plot elevation
-or velocity profile.
+Analyze GPS track and plot elevation and velocity profiles.
 
-options:
+Features:
+	* using haversine formula to calculate distances (spherical Earth)
+	* support of multi-segment (discontinuous) tracks
+	* gnuplot support:
+		- generate plots if gnuplot.py is available
+		- generate gnuplot script if gnuplot.py is not available
+		- plot interactively and plot-to-file modes
+	* tabular track profile data can be generated
+	* metric and English units
+	* timezone support
+
+Options:
 -h, --help    print this message
 -E            use English units (metric units used by default)
 -g            plot using gnuplot.py if available or output gnuplot script
 -x var        plot var = { time | distance } against x-axis
 -y var        plot var = { elevation | velocity } against y-axis
 -o imagefile  save plot to image file (supported: PNG, JPG, EPS, SVG)
--t tzname     use local timezone tzname (e.g. 'Europe/Mosow')
+-t tzname     use local timezone tzname (e.g. 'Europe/Moscow')
 """
 
 import sys
@@ -71,6 +80,10 @@ var_names={ 't': var_time,
 			'velocity': var_vel,
 			}
 
+EXIT_EOPTION=1
+EXIT_EDEPENDENCY=2
+EXIT_EFORMAT=3
+
 def haversin(theta):
 	return sin(0.5*theta)**2
 
@@ -97,7 +110,7 @@ def read_gpx_trk(filename,tzname=None):
 					import lxml.etree as ET
 				except:
 					print 'this script needs ElementTree (Python>=2.5)'
-					sys.exit(2)
+					sys.exit(EXIT_EDEPENDENCY)
 	gpx=open(filename).read()
 	etree=ET.XML(gpx)
 	trk=[]
@@ -179,7 +192,7 @@ def gen_gnuplot_script(trk,x,y,file=sys.stdout,metric=True,savefig=None):
 			file.write("set terminal svg; set output '%s';\n"%(savefig))
 		else:
 			print 'unsupported file type: %s'%ext
-			sys.exit(3)
+			sys.exit(EXIT_EFORMAT)
 	file.write("plot '-' u %d:%d w l\n"%(x-1,y-1,))
 	print_gpx_trk(trk,file=file,metric=metric)
 	file.write('e')
@@ -210,7 +223,7 @@ def main():
 	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:t:',['help',])
 	except:
 		print __doc__
-		sys.exit(1)
+		sys.exit(EXIT_EOPTION)
 	for o, a in opts:
 		if o in ['-h','--help']:
 			print __doc__
@@ -225,26 +238,29 @@ def main():
 			else:
 				print 'unknown x variable'
 				print __doc__
-				sys.exit(1)
+				sys.exit(EXIT_EOPTION)
 		if o == '-y':
 			if var_names.has_key(a):
 				yvar=var_names[a]
 			else:
 				print 'unknown y variable'
 				print __doc__
-				sys.exit(1)
+				sys.exit(EXIT_EOPTION)
 		if o == '-o':
 			imagefile=a
 		if o == '-t':
 			if not globals().has_key('pytz'):
 				print 'pytz module is required to change timezone'
-				print __doc__
-				sys.exit(2)
+				sys.exit(EXIT_EDEPENDENCY)
 			tzname=a
 	if len(args) > 1:
-		print 'too many files given'
+		print 'only one GPX file should be specified'
 		print __doc__
-		sys.exit(1)
+		sys.exit(EXIT_EOPTION)
+	elif len(args) == 0:
+		print __doc__
+		sys.exit(EXIT_EOPTION)
+
 	file=args[0]
 	trk=read_gpx_trk(file,tzname)
 	if gnuplot:
