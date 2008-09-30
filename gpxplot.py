@@ -39,12 +39,17 @@ Options:
 -y var        plot var = { elevation | velocity } against y-axis
 -o imagefile  save plot to image file (supported: PNG, JPG, EPS, SVG)
 -t tzname     use local timezone tzname (e.g. 'Europe/Moscow')
+-n N_points   reduce number of points in the plot to approximately N_points
 """
 
 import sys
 import datetime
 import getopt
-from math import sqrt,sin,cos,asin,pi
+from math import sqrt,sin,cos,asin,pi,ceil
+
+import logging
+#logging.basicConfig(level=logging.DEBUG,format='%(levelname)s: %(message)s')
+debug=logging.debug
 
 try:
 	import pytz
@@ -61,8 +66,8 @@ feetperm=3.2808399
 strptime=datetime.datetime.strptime
 
 var_time=2
-var_dist=3
-var_ele=4
+var_ele=3
+var_dist=4
 var_vel=5
 
 var_names={ 't': var_time,
@@ -96,7 +101,69 @@ def distance(p1,p2):
 	dist=2*R*asin(sqrt(h))
 	return dist
 
-def read_gpx_trk(filename,tzname=None):
+def read_all_segments(trksegs,tzname=None):
+	trk=[]
+	for seg in trksegs:
+		s=[]
+		prev_lat,prev_lon,prev_time=None,None,None
+		trkpts=seg.findall(NS+'trkpt')
+		for pt in trkpts:
+			lat=float(pt.attrib['lat'])
+			lon=float(pt.attrib['lon'])
+			time=pt.findtext(NS+'time')
+			if time:
+				time=strptime(time,dateformat)
+				if tzname:
+					time=time.replace(tzinfo=pytz.utc)
+					time=time.astimezone(pytz.timezone(tzname))
+			ele=pt.findtext(NS+'ele')
+			if ele: ele=float(ele)
+			s.append([lat, lon, time, ele])
+		trk.append(s)
+	return trk
+
+def reduce_points(trk,npoints=None):
+	count=sum([len(s) for s in trk])
+	if npoints:
+		ptperpt=1.0*count/npoints
+	else:
+		ptperpt=1.0
+	skip=int(ceil(ptperpt))
+	debug('ptperpt=%f skip=%d'%(ptperpt,skip))
+	newtrk=[]
+	for seg in trk:
+		if len(seg) > 0:
+			newseg=seg[:-1:skip]+[seg[-1]]
+			newtrk.append(newseg)
+	debug('original: %d pts, filtered: %d pts'%\
+			(count,sum([len(s) for s in newtrk])))
+	return newtrk
+
+def eval_dist_velocity(trk):
+	dist=0.0
+	newtrk=[]
+	for seg in trk:
+		if len(seg)>0:
+			newseg=[]
+			prev_lat,prev_lon,prev_time,prev_ele=None,None,None,None
+			for pt in seg:
+				lat,lon,time,ele=pt
+				if prev_lat and prev_lon:
+					delta=distance([lat,lon],[prev_lat,prev_lon])
+					if time and prev_time:
+						vel=3600*delta/((time-prev_time).seconds)
+					else: 
+						vel=0.0
+				else: # new segment
+					delta=0.0
+					vel=0.0
+				dist=dist+delta
+				newseg.append([lat,lon,time,ele,dist,vel])
+				prev_lat,prev_lon,prev_time=lat,lon,time
+			newtrk.append(newseg)
+	return newtrk
+
+def read_gpx_trk(filename,tzname=None,npoints=None):
 	try:
 		import xml.etree.ElementTree as ET
 	except:
@@ -113,46 +180,19 @@ def read_gpx_trk(filename,tzname=None):
 					sys.exit(EXIT_EDEPENDENCY)
 	gpx=open(filename).read()
 	etree=ET.XML(gpx)
-	trk=[]
-	dist=0.0
 	trksegs=etree.findall('.//'+NS+'trkseg')
-	for seg in trksegs:
-		s=[]
-		prev_lat,prev_lon,prev_time=None,None,None
-		trkpts=seg.findall(NS+'trkpt')
-		for pt in trkpts:
-			lat=float(pt.attrib['lat'])
-			lon=float(pt.attrib['lon'])
-			time=pt.findtext(NS+'time')
-			if time:
-				time=strptime(time,dateformat)
-				if tzname:
-					time=time.replace(tzinfo=pytz.utc)
-					time=time.astimezone(pytz.timezone(tzname))
-			ele=pt.findtext(NS+'ele')
-			if ele: ele=float(ele)
-			if prev_lat and prev_lon:
-				delta=distance([lat,lon],[prev_lat,prev_lon])
-				if time and prev_time:
-					vel=3600*delta/((time-prev_time).seconds)
-				else: 
-					vel=0.0
-			else: # new segment
-				delta=0.0
-				vel=0.0
-			dist=dist+delta
-			s.append([lat, lon, time, dist, ele, vel])
-			prev_lat,prev_lon,prev_time=lat,lon,time
-		trk.append(s)
+	trk=read_all_segments(trksegs,tzname=tzname)
+	trk=reduce_points(trk,npoints=npoints)
+	trk=eval_dist_velocity(trk)
 	return trk
 
 def print_gpx_trk(trk,file=sys.stdout,metric=True):
 	f=file
 	if metric:
-		f.write('# time(ISO) distance(km) elevation(m) velocity(km/h)\n')
+		f.write('# time(ISO) elevation(m) distance(km) velocity(km/h)\n')
 		km,m=1.0,1.0
 	else:
-		f.write('# time(ISO) distance(miles) elevation(ft) velocity(miles/h)\n')
+		f.write('# time(ISO) elevation(ft) distance(miles) velocity(miles/h)\n')
 		km,m=milesperkm,feetperm
 	for seg in trk:
 		if len(seg) == 0:
@@ -160,7 +200,7 @@ def print_gpx_trk(trk,file=sys.stdout,metric=True):
 		for p in seg:
 			f.write('%s %f %f %f\n'%\
 				((p[var_time].isoformat(),\
-				km*p[var_dist],m*p[var_ele],km*p[var_vel])))
+				m*p[var_ele],km*p[var_dist],km*p[var_vel])))
 		f.write('\n')
 
 def gen_gnuplot_script(trk,x,y,file=sys.stdout,metric=True,savefig=None):
@@ -220,7 +260,8 @@ def main():
 	yvar=var_ele
 	imagefile=None
 	tzname=None
-	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:t:',['help',])
+	npoints=None
+	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:t:n:',['help',])
 	except:
 		print __doc__
 		sys.exit(EXIT_EOPTION)
@@ -253,6 +294,8 @@ def main():
 				print 'pytz module is required to change timezone'
 				sys.exit(EXIT_EDEPENDENCY)
 			tzname=a
+		if o == '-n':
+			npoints=int(a)
 	if len(args) > 1:
 		print 'only one GPX file should be specified'
 		print __doc__
@@ -262,7 +305,7 @@ def main():
 		sys.exit(EXIT_EOPTION)
 
 	file=args[0]
-	trk=read_gpx_trk(file,tzname)
+	trk=read_gpx_trk(file,tzname,npoints)
 	if gnuplot:
 		plot_in_gnuplot(trk,x=xvar,y=yvar,metric=metric,savefig=imagefile)
 	else:
