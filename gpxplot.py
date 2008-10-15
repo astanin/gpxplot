@@ -34,7 +34,8 @@ Features:
 Options:
 -h, --help    print this message
 -E            use English units (metric units used by default)
--g            plot using gnuplot.py if available or output gnuplot script
+-g            plot using gnuplot.py
+--gprint      print gnuplot script to standard output
 -x var        plot var = { time | distance } against x-axis
 -y var        plot var = { elevation | velocity } against y-axis
 -o imagefile  save plot to image file (supported: PNG, JPG, EPS, SVG)
@@ -237,11 +238,15 @@ def gen_gnuplot_script(trk,x,y,file=sys.stdout,metric=True,savefig=None):
 	print_gpx_trk(trk,file=file,metric=metric)
 	file.write('e')
 
-def plot_in_gnuplot(trk,x,y,metric=True,savefig=None):
+def get_gnuplot_script(trk,x,y,metric,savefig):
 	import StringIO
 	script=StringIO.StringIO()
 	gen_gnuplot_script(trk,x,y,file=script,metric=metric,savefig=savefig)
 	script=script.getvalue()
+	return script
+
+def plot_in_gnuplot(trk,x,y,metric=True,savefig=None):
+	script=get_gnuplot_script(trk,x,y,metric,savefig)
 	try:
 		import Gnuplot
 		if not savefig:
@@ -250,18 +255,22 @@ def plot_in_gnuplot(trk,x,y,metric=True,savefig=None):
 			g=Gnuplot.Gnuplot()
 		g(script)
 	except: # python-gnuplot is not available or is broken
-		print '# run this script in gnuplot'
-		print script
+		print 'gnuplot.py is not found'
+
+def print_gnuplot_script(trk,x,y,metric=True,savefig=None):
+	script=get_gnuplot_script(trk,x,y,metric,savefig)
+	print script
 
 def main():
 	metric=True
 	gnuplot=False
+	gnuplot_print=False
 	xvar=var_dist
 	yvar=var_ele
 	imagefile=None
 	tzname=None
 	npoints=None
-	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:t:n:',['help',])
+	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:t:n:',['help','gprint'])
 	except:
 		print __doc__
 		sys.exit(EXIT_EOPTION)
@@ -273,6 +282,8 @@ def main():
 			metric=False
 		if o == '-g':
 			gnuplot=True
+		if o == '--gprint':
+			gnuplot_print=True
 		if o == '-x':
 			if var_names.has_key(a):
 				xvar=var_names[a]
@@ -308,6 +319,8 @@ def main():
 	trk=read_gpx_trk(file,tzname,npoints)
 	if gnuplot:
 		plot_in_gnuplot(trk,x=xvar,y=yvar,metric=metric,savefig=imagefile)
+	elif gnuplot_print:
+		print_gnuplot_script(trk,x=xvar,y=yvar,metric=metric,savefig=imagefile)
 	else:
 		print_gpx_trk(trk,metric=metric)
 
