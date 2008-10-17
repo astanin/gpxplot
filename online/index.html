@@ -1,0 +1,69 @@
+<html>
+<head>
+<title>{{ title }}</title>
+<!-- Better HTML markup is welcome, 
+	so far using <table height="100%"> with no DTD -->
+<style type="text/css">
+#screen { border:0px; height:88%; width: 100%; background: {{bg}}; }
+#screen td { vertical-align: middle; text-align: center; }
+#links { text-align: center; font-size: 70%;
+	margin-top: 2ex; margin-left: auto; margin-right: auto;
+	width: 10em; background: #cbbaec; padding: 5px; }
+#links a { text-decoration: none; color: #492d7f; }
+body { font-family: sans-serif; font-size: 120%;
+	background: white; color: #333; }
+form.upload { margin: 50px; }
+.error { color: red; font-weight: bolder; }
+</style>
+<script language="JavaScript">
+function highlight(field) {
+	field.focus();
+	field.select();
+}</script>
+</head><body><table id="screen"><tr><td>
+
+{% if form %}
+<h1>Upload your track</h1>
+
+<form class="upload" action="/" method="POST" enctype="multipart/form-data">
+<p>
+<label for="gpxfile">GPX file:</label>
+<input id="gpxfile" type="file" name="gpxfile"></p>
+<p>
+<label for="imperial">Imperial units: </label>
+<input id="imperial" type="checkbox" name="imperial"></p>
+<p>
+<input type="submit" value="Submit"></p>
+</form>
+{% endif %}
+
+{% if error %}
+<p class="error">{{error}}</p>
+{% endif %}
+
+{% if imgsrc %}
+<p><img src="{{imgsrc}}" alt="GPS elavation–distance profile"></p>
+<p><form>
+<label for="htmlsnippet">Embed into blog:</label>
+<input id="htmlsnippet" type="text" 
+value="<img src=&quot;{{imgsrc}}&quot; alt=&quot;GPS elavation–distance profile: http://gpxplot.appspot.com/&quot;>"
+size=30 onClick="highlight(this);">
+</form></p>
+{% endif %}
+
+</td></tr></table>
+<div id="links">
+<a href="http://gpxplot.appspot.com/" title="Visualize your GPS track online" style="font-size: 160%; ">gpxplot</a><br>
+<a href="http://code.google.com/p/gpxplot/" title="gpxplot: visualize elevation and velocity profiles of GPS tracks">+&nbsp;source&nbsp;code</a> ;-)
+</div>
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+var pageTracker = _gat._getTracker("UA-2240197-6");
+pageTracker._trackPageview();
+</script>
+</body>
+</html>
+
