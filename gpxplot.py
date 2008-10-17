@@ -16,7 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""usage: gpxplot.py [options] track.gpx
+"""usage: gpxplot.py [action] [options] track.gpx
 
 Analyze GPS track and plot elevation and velocity profiles.
 
@@ -27,15 +27,21 @@ Features:
 		- generate plots if gnuplot.py is available
 		- generate gnuplot script if gnuplot.py is not available
 		- plot interactively and plot-to-file modes
+	* Google Chart API support:
+        - print URL or the plot
 	* tabular track profile data can be generated
 	* metric and English units
 	* timezone support
 
+Actions:
+-g            plot using gnuplot.py
+--gprint      print gnuplot script to standard output
+--google      print Google Chart URL
+--table       print data table (default)
+
 Options:
 -h, --help    print this message
 -E            use English units (metric units used by default)
--g            plot using gnuplot.py
---gprint      print gnuplot script to standard output
 -x var        plot var = { time | distance } against x-axis
 -y var        plot var = { elevation | velocity } against y-axis
 -o imagefile  save plot to image file (supported: PNG, JPG, EPS, SVG)
@@ -46,6 +52,7 @@ Options:
 import sys
 import datetime
 import getopt
+from string import join
 from math import sqrt,sin,cos,asin,pi,ceil
 
 import logging
@@ -187,6 +194,65 @@ def read_gpx_trk(filename,tzname=None,npoints=None):
 	trk=eval_dist_velocity(trk)
 	return trk
 
+def google_ext_encode(i):
+	"""Google Charts' extended encoding,
+	see http://code.google.com/apis/chart/mappings.html#extended_values"""
+	enc='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+	enc=enc+enc.lower()+'0123456789-.'
+	i=int(i)%4096 # modulo 4096
+	figure=enc[int(i/len(enc))]+enc[int(i%len(enc))]
+	return figure
+
+def google_text_encode_data(trk,x,y,min_x,max_x,min_y,max_y,metric=True):
+	if metric:
+		mlpkm,fpm=1.0,1.0
+	else:
+		mlpkm,fpm=milesperkm,feetperm
+	xenc=lambda x: "%.1f"%x
+	yenc=lambda y: "%.1f"%y
+	data='&chd=t:'+join([ join([xenc(p[x]*mlpkm) for p in seg],',')+\
+				'|'+join([yenc(p[y]*fpm) for p in seg],',') \
+			for seg in trk if len(seg) > 0],'|')
+	data=data+'&chds='+join([join([xenc(min_x),xenc(max_x),yenc(min_y),yenc(max_y)],',') \
+			for seg in trk if len(seg) > 0],',')
+	return data
+
+def google_ext_encode_data(trk,x,y,min_x,max_x,min_y,max_y,metric=True):
+	if metric:
+		mlpkm,fpm=1.0,1.0
+	else:
+		mlpkm,fpm=milesperkm,feetperm
+	xenc=lambda x: google_ext_encode((x-min_x)*4095/(max_x-min_x))
+	yenc=lambda y: google_ext_encode((y-min_y)*4095/(max_y-min_y))
+	data='&chd=e:'+join([ join([xenc(p[x]*mlpkm) for p in seg],'')+\
+				','+join([yenc(p[y]*fpm) for p in seg],'') \
+			for seg in trk if len(seg) > 0],',')
+	return data
+
+def google_chart_url(trk,x,y,metric=True):
+	if x != var_dist or y != var_ele:
+		print 'only distance-elevation profiles are supported in --google mode'
+		return
+	if metric:
+		ele_units,dist_units='m','km'
+		mlpkm,fpm=1.0,1.0
+	else:
+		ele_units,dist_units='ft','miles'
+		mlpkm,fpm=milesperkm,feetperm
+	urlprefix='http://chart.apis.google.com/chart?chtt=gpxplot.appspot.com&chts=cccccc,9&'
+	url='chs=600x400&chco=9090FF&cht=lxy&chxt=x,y,x,y&chxp=2,100|3,100&'\
+			'chxl=2:|distance, %s|3:|elevation, %s|'%(dist_units,ele_units)
+	min_x=0
+	max_x=mlpkm*(max([max([p[x] for p in seg]) for seg in trk if len(seg) > 0]))
+	max_y=fpm*(max([max([p[y] for p in seg]) for seg in trk if len(seg) > 0]))
+	min_y=fpm*(min([min([p[y] for p in seg]) for seg in trk if len(seg) > 0]))
+	range='&chxr=0,0,%s|1,%s,%s'%(int(max_x),int(min_y),int(max_y))
+	data=google_ext_encode_data(trk,x,y,min_x,max_x,min_y,max_y,metric)
+	url=urlprefix+url+range+data
+	if len(url) > 2048:
+		raise OverflowError("URL too long, reduce number of points: "+(url))
+	return url
+
 def print_gpx_trk(trk,file=sys.stdout,metric=True):
 	f=file
 	if metric:
@@ -263,14 +329,14 @@ def print_gnuplot_script(trk,x,y,metric=True,savefig=None):
 
 def main():
 	metric=True
-	gnuplot=False
-	gnuplot_print=False
 	xvar=var_dist
+	action='printtable'
 	yvar=var_ele
 	imagefile=None
 	tzname=None
 	npoints=None
-	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:t:n:',['help','gprint'])
+	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:t:n:',
+			['help','gprint','google','table'])
 	except:
 		print __doc__
 		sys.exit(EXIT_EOPTION)
@@ -281,9 +347,13 @@ def main():
 		if o == '-E':
 			metric=False
 		if o == '-g':
-			gnuplot=True
+			action='gnuplot'
 		if o == '--gprint':
-			gnuplot_print=True
+			action='printgnuplot'
+		if o == '--google':
+			action='googlechart'
+		if o == '--table':
+			action='printtable'
 		if o == '-x':
 			if var_names.has_key(a):
 				xvar=var_names[a]
@@ -317,12 +387,14 @@ def main():
 
 	file=args[0]
 	trk=read_gpx_trk(file,tzname,npoints)
-	if gnuplot:
+	if action == 'gnuplot':
 		plot_in_gnuplot(trk,x=xvar,y=yvar,metric=metric,savefig=imagefile)
-	elif gnuplot_print:
+	elif action == 'printgnuplot':
 		print_gnuplot_script(trk,x=xvar,y=yvar,metric=metric,savefig=imagefile)
-	else:
+	elif action == 'printtable':
 		print_gpx_trk(trk,metric=metric)
+	elif action == 'googlechart':
+		print google_chart_url(trk,x=xvar,y=yvar,metric=metric)
 
 if __name__ == '__main__':
 	main()
