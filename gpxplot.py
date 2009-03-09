@@ -115,7 +115,7 @@ def read_all_segments(trksegs,tzname=None,ns=GPX10):
 	trk=[]
 	for seg in trksegs:
 		s=[]
-		prev_time=None,None,None
+		prev_ele,prev_time=0.0,None
 		trkpts=seg.findall(ns+'trkpt')
 		for pt in trkpts:
 			lat=float(pt.attrib['lat'])
@@ -130,14 +130,15 @@ def read_all_segments(trksegs,tzname=None,ns=GPX10):
 			if time:
 				prev_time=time
 				time=prettify_time(time)
-			elif prev_time:# use the timestamp of the last point with timestamp
+			elif prev_time: # timestamp is missing, use the prev point
 				time=prev_time
 				time=prettify_time(time)
 			ele=pt.findtext(ns+'ele')
 			if ele:
 				ele=float(ele)
+				prev_ele=ele
 			else:
-				ele=0.0 # elevation data is missing
+				ele=prev_ele # elevation data is missing, use the prev point
 			s.append([lat, lon, time, ele])
 		trk.append(s)
 	return trk
