@@ -24,6 +24,8 @@ class MainPage(webapp.RequestHandler):
 			else:
 				metric=True
 			gpxdata=self.request.get("gpxfile")
+			if len(gpxdata) == 0:
+				raise Exception("There is no GPX data to plot!")
 			# reduce number of points gradually, to fit URL length
 			npoints=800
 			url=None
