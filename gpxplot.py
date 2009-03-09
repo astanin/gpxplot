@@ -55,6 +55,7 @@ import getopt
 from string import join
 from math import sqrt,sin,cos,asin,pi,ceil
 from os.path import basename
+from re import sub
 
 import logging
 #logging.basicConfig(level=logging.DEBUG,format='%(levelname)s: %(message)s')
@@ -122,6 +123,7 @@ def read_all_segments(trksegs,tzname=None,ns=GPX10):
 			lon=float(pt.attrib['lon'])
 			time=pt.findtext(ns+'time')
 			def prettify_time(time):
+				time=sub(r'\.\d+Z$','Z',time)
 				time=strptime(time,dateformat)
 				if tzname:
 					time=time.replace(tzinfo=pytz.utc)
