@@ -6,6 +6,9 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext.webapp import template
 
 import logging
+
+from gpxplot import parse_gpx_data,google_chart_url,var_dist,var_ele
+
 class MainPage(webapp.RequestHandler):
 	def get(self):
 		content={'title':'Visualize GPX profile online',
@@ -15,18 +18,19 @@ class MainPage(webapp.RequestHandler):
 	def post(self):
 		content={'title':'Elevation–distance profile','form':False, 'bg':'#fff'}
 		try:
-			from gpxutil import read_gpx_trk,google_chart_url,var_dist,var_ele
 			imperial=self.request.get('imperial')
 			if imperial == 'on':
 				metric=False
 			else:
 				metric=True
 			gpxdata=self.request.get("gpxfile")
-			trk=read_gpx_trk(gpxdata,npoints=300)
+			trk=parse_gpx_data(gpxdata,npoints=300)
 			url=google_chart_url(trk,var_dist,var_ele,metric=metric)
 			content['imgsrc']=url
 		except Exception, e:
-			content['error'] = 'Your GPX track cannot be processed. Sorry :-('
+			msg = 'Your GPX track cannot be processed. Sorry :-('
+			msg += '<br/>Exception: '+unicode(e)
+			content['error'] = msg
 			logging.error('Exception: '+unicode(e))
 		self.response.out.write(template.render('index.html',content))
 
