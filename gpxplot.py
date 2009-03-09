@@ -54,6 +54,7 @@ import datetime
 import getopt
 from string import join
 from math import sqrt,sin,cos,asin,pi,ceil
+from os.path import basename
 
 import logging
 #logging.basicConfig(level=logging.DEBUG,format='%(levelname)s: %(message)s')
@@ -64,7 +65,8 @@ try:
 except:
 	pass
 
-NS='{http://www.topografix.com/GPX/1/0}'
+GPX10='{http://www.topografix.com/GPX/1/0}'
+GPX11='{http://www.topografix.com/GPX/1/1}'
 dateformat='%Y-%m-%dT%H:%M:%SZ'
 
 R=6371.0008 # Earth volumetric radius
@@ -109,23 +111,33 @@ def distance(p1,p2):
 	dist=2*R*asin(sqrt(h))
 	return dist
 
-def read_all_segments(trksegs,tzname=None):
+def read_all_segments(trksegs,tzname=None,ns=GPX10):
 	trk=[]
 	for seg in trksegs:
 		s=[]
-		prev_lat,prev_lon,prev_time=None,None,None
-		trkpts=seg.findall(NS+'trkpt')
+		prev_time=None,None,None
+		trkpts=seg.findall(ns+'trkpt')
 		for pt in trkpts:
 			lat=float(pt.attrib['lat'])
 			lon=float(pt.attrib['lon'])
-			time=pt.findtext(NS+'time')
-			if time:
+			time=pt.findtext(ns+'time')
+			def prettify_time(time):
 				time=strptime(time,dateformat)
 				if tzname:
 					time=time.replace(tzinfo=pytz.utc)
 					time=time.astimezone(pytz.timezone(tzname))
-			ele=pt.findtext(NS+'ele')
-			if ele: ele=float(ele)
+				return time
+			if time:
+				prev_time=time
+				time=prettify_time(time)
+			elif prev_time:# use the timestamp of the last point with timestamp
+				time=prev_time
+				time=prettify_time(time)
+			ele=pt.findtext(ns+'ele')
+			if ele:
+				ele=float(ele)
+			else:
+				ele=0.0 # elevation data is missing
 			s.append([lat, lon, time, ele])
 		trk.append(s)
 	return trk
@@ -159,7 +171,10 @@ def eval_dist_velocity(trk):
 				if prev_lat and prev_lon:
 					delta=distance([lat,lon],[prev_lat,prev_lon])
 					if time and prev_time:
-						vel=3600*delta/((time-prev_time).seconds)
+						try:
+							vel=3600*delta/((time-prev_time).seconds)
+						except ZeroDivisionError:
+							vel=0.0 # probably the point lacked the timestamp
 					else: 
 						vel=0.0
 				else: # new segment
@@ -188,8 +203,12 @@ def read_gpx_trk(filename,tzname=None,npoints=None):
 					sys.exit(EXIT_EDEPENDENCY)
 	gpx=open(filename).read()
 	etree=ET.XML(gpx)
-	trksegs=etree.findall('.//'+NS+'trkseg')
-	trk=read_all_segments(trksegs,tzname=tzname)
+	trksegs=etree.findall('.//'+GPX10+'trkseg')
+	NS=GPX10
+	if not len(trksegs): # try GPX11 namespace otherwise
+		trksegs=etree.findall('.//'+GPX11+'trkseg')
+		NS=GPX11
+	trk=read_all_segments(trksegs,tzname=tzname,ns=NS)
 	trk=reduce_points(trk,npoints=npoints)
 	trk=eval_dist_velocity(trk)
 	return trk
@@ -335,10 +354,14 @@ def main():
 	imagefile=None
 	tzname=None
 	npoints=None
+	def print_see_usage():
+		print 'see usage: ' + basename(sys.argv[0]) + ' --help'
+
 	try: opts,args=getopt.getopt(sys.argv[1:],'hgEx:y:o:t:n:',
 			['help','gprint','google','table'])
-	except:
-		print __doc__
+	except Exception, e:
+		print e
+		print_see_usage()
 		sys.exit(EXIT_EOPTION)
 	for o, a in opts:
 		if o in ['-h','--help']:
@@ -359,14 +382,14 @@ def main():
 				xvar=var_names[a]
 			else:
 				print 'unknown x variable'
-				print __doc__
+				print_see_usage()
 				sys.exit(EXIT_EOPTION)
 		if o == '-y':
 			if var_names.has_key(a):
 				yvar=var_names[a]
 			else:
 				print 'unknown y variable'
-				print __doc__
+				print_see_usage()
 				sys.exit(EXIT_EOPTION)
 		if o == '-o':
 			imagefile=a
@@ -379,10 +402,11 @@ def main():
 			npoints=int(a)
 	if len(args) > 1:
 		print 'only one GPX file should be specified'
-		print __doc__
+		print_see_usage()
 		sys.exit(EXIT_EOPTION)
 	elif len(args) == 0:
-		print __doc__
+		print 'please provide a GPX file to process.'
+		print_see_usage()
 		sys.exit(EXIT_EOPTION)
 
 	file=args[0]
