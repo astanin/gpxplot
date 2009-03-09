@@ -24,8 +24,17 @@ class MainPage(webapp.RequestHandler):
 			else:
 				metric=True
 			gpxdata=self.request.get("gpxfile")
-			trk=parse_gpx_data(gpxdata,npoints=300)
-			url=google_chart_url(trk,var_dist,var_ele,metric=metric)
+			# reduce number of points gradually, to fit URL length
+			npoints=800
+			url=None
+			while not url:
+				try:
+					trk=parse_gpx_data(gpxdata,npoints=npoints)
+					url=google_chart_url(trk,var_dist,var_ele,metric=metric)
+				except OverflowError, e:
+					npoints -= 100
+					if npoints <= 0:
+						raise e
 			content['imgsrc']=url
 		except Exception, e:
 			msg = 'Your GPX track cannot be processed. Sorry :-('
