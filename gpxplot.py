@@ -189,7 +189,7 @@ def eval_dist_velocity(trk):
 			newtrk.append(newseg)
 	return newtrk
 
-def read_gpx_trk(filename,tzname=None,npoints=None):
+def parse_gpx_data(gpxdata,tzname=None,npoints=None):
 	try:
 		import xml.etree.ElementTree as ET
 	except:
@@ -204,8 +204,7 @@ def read_gpx_trk(filename,tzname=None,npoints=None):
 				except:
 					print 'this script needs ElementTree (Python>=2.5)'
 					sys.exit(EXIT_EDEPENDENCY)
-	gpx=open(filename).read()
-	etree=ET.XML(gpx)
+	etree=ET.XML(gpxdata)
 	trksegs=etree.findall('.//'+GPX10+'trkseg')
 	NS=GPX10
 	if not len(trksegs): # try GPX11 namespace otherwise
@@ -215,6 +214,10 @@ def read_gpx_trk(filename,tzname=None,npoints=None):
 	trk=reduce_points(trk,npoints=npoints)
 	trk=eval_dist_velocity(trk)
 	return trk
+
+def read_gpx_trk(filename,tzname,npoints):
+	gpx=open(filename).read()
+	return parse_gpx_data(gpx,tzname,npoints)
 
 def google_ext_encode(i):
 	"""Google Charts' extended encoding,
