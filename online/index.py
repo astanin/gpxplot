@@ -73,16 +73,23 @@ class ApiHandler(webapp.RequestHandler):
 	def post(self):
 		try:
 			url=plot_on_request(self.request)
-			self.response.headers['Content-Type']='application/json'
-			self.response.out.write(json.dumps({'url':url}))
+			format=self.request.get("output","json")
+			if format == "json":
+				self.response.headers['Content-Type']='application/json'
+				self.response.out.write(json.dumps({'url':url}))
+			elif format == "png":
+				self.redirect(url)
+			else:
+				raise Exception("Output format not supported.")
 		except Exception, e:
 			self.response.set_status(400,message='Exception: '+unicode(e))
 
 application = webapp.WSGIApplication(
 		 [('/', MainPage),
 		  (r'/api/0.1/plot',ApiHandler),
-		  (r'/api/0.1.1/plot',ApiHandler)],
-		 debug=True)
+		  (r'/api/0.1.1/plot',ApiHandler),
+		  (r'/api/0.1.2/plot',ApiHandler),
+		 ], debug=True)
 
 def main():
 	run_wsgi_app(application)
