@@ -7,6 +7,7 @@ from google.appengine.ext.webapp import template
 
 from django.utils import simplejson as json
 
+import urllib2
 import logging
 
 from gpxplot import parse_gpx_data,google_chart_url,var_dist,var_ele
@@ -18,11 +19,24 @@ def plot_on_request(request):
 		metric=False
 	else:
 		metric=True
-	gpxdata=request.get("gpxfile")
+	logging.debug('metric='+str(metric))
+	try:
+		url=request.get("gpxurl")
+		if url: # fetch GPX data
+			logging.debug('fetching GPX from '+url)
+			reader=urllib2.urlopen(url)
+			gpxdata=reader.read()
+		else:
+			logging.debug('using submitted GPX data')
+			gpxdata=request.get("gpxfile")
+		logging.debug('gpxdata='+gpxdata[:320])
+	except Exception, e:
+		logging.debug(unicode(e))
+		raise e
 	if len(gpxdata) == 0:
 		raise Exception("There is no GPX data to plot!")
 	# reduce number of points gradually, to fit URL length
-	npoints=800
+	npoints=700
 	url=None
 	while not url:
 		try:
@@ -54,6 +68,8 @@ class MainPage(webapp.RequestHandler):
 
 class ApiHandler(webapp.RequestHandler):
 	"Return a URL of the image in a file."
+	def get(self):
+		return self.post()
 	def post(self):
 		try:
 			url=plot_on_request(self.request)
@@ -64,7 +80,8 @@ class ApiHandler(webapp.RequestHandler):
 
 application = webapp.WSGIApplication(
 		 [('/', MainPage),
-		  ('/api/0.1/plot',ApiHandler)],
+		  (r'/api/0.1/plot',ApiHandler),
+		  (r'/api/0.1.1/plot',ApiHandler)],
 		 debug=True)
 
 def main():
