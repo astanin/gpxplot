@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-# vim: set fileencoding=utf-8 ts=4 sw=4:
+# vim: set fileencoding=utf-8 noexpandtab ts=4 sw=4 :
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext.webapp import template
+from google.appengine.runtime.apiproxy_errors import OverQuotaError
 
 from django.utils import simplejson as json
 
@@ -11,6 +12,11 @@ import urllib2
 import logging
 
 from gpxplot import parse_gpx_data,google_chart_url,var_dist,var_ele
+
+max_gpx_size = 1048576
+
+class GPXSizeError (Exception):
+	pass
 
 def plot_on_request(request):
 	"Process POST request with GPX data. Return a URL of the plot."
@@ -25,10 +31,18 @@ def plot_on_request(request):
 		if url: # fetch GPX data
 			logging.debug('fetching GPX from '+url)
 			reader=urllib2.urlopen(url)
+			gpxsize = int(reader.headers["Content-Length"])
+			logging.debug('gpxsize=%d' % gpxsize)
+			if gpxsize > max_gpx_size:
+				raise GPXSizeError("File is too large")
 			gpxdata=reader.read()
 		else:
 			logging.debug('using submitted GPX data')
 			gpxdata=request.get("gpxfile")
+			gpxsize=len(gpxdata)
+			logging.debug('gpxsize=%d' % gpxsize)
+			if gpxsize > max_gpx_size:
+				raise GPXSizeError("File is too large")
 		logging.debug('gpxdata='+gpxdata[:320])
 	except Exception, e:
 		logging.debug(unicode(e))
@@ -59,11 +73,22 @@ class MainPage(webapp.RequestHandler):
 		try:
 			url=plot_on_request(self.request)
 			content['imgsrc']=url
-		except Exception, e:
-			msg = 'Your GPX track cannot be processed. Sorry :-('
-			msg += '<br/>Exception: '+unicode(e)
+		except GPXSizeError, e:
+			msg = 'File is too large to be processed on gpxplot.appspot.com. ' + \
+				  '<br/>Reduce file size with gpsbabel or plot it offline with a ' + \
+				  'stand-alone version of gpxplot.'
 			content['error'] = msg
-			logging.error('Exception: '+unicode(e))
+			logging.error(e)
+		except OverQuotaError, e:
+			msg = 'Application exceeded free quota. Try again later.'
+			content['error'] = msg
+			logging.error(e)
+		except Exception, e:
+			msg = 'Your GPX track cannot be processed. Sorry.'
+			msg += '<br/>'+unicode(e)
+			content['error'] = msg
+			content['bugreportme'] = True
+			logging.error(e)
 		self.response.out.write(template.render('index.html',content))
 
 class ApiHandler(webapp.RequestHandler):
