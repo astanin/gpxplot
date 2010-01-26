@@ -207,9 +207,12 @@ def parse_gpx_data(gpxdata,tzname=None,npoints=None):
 	etree=ET.XML(gpxdata)
 	trksegs=etree.findall('.//'+GPX10+'trkseg')
 	NS=GPX10
-	if not len(trksegs): # try GPX11 namespace otherwise
+	if not trksegs: # try GPX11 namespace otherwise
 		trksegs=etree.findall('.//'+GPX11+'trkseg')
 		NS=GPX11
+	if not trksegs: # try without any namespace
+		trksegs=etree.findall('.//'+'trkseg')
+		NS=""
 	trk=read_all_segments(trksegs,tzname=tzname,ns=NS)
 	trk=reduce_points(trk,npoints=npoints)
 	trk=eval_dist_velocity(trk)
@@ -269,6 +272,8 @@ def google_chart_url(trk,x,y,metric=True):
 	if x != var_dist or y != var_ele:
 		print 'only distance-elevation profiles are supported in --google mode'
 		return
+	if not trk:
+		raise ValueError("Parsed track is empty")
 	if metric:
 		ele_units,dist_units='m','km'
 		mlpkm,fpm=1.0,1.0

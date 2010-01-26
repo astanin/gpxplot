@@ -207,9 +207,12 @@ def parse_gpx_data(gpxdata,tzname=None,npoints=None):
 	etree=ET.XML(gpxdata)
 	trksegs=etree.findall('.//'+GPX10+'trkseg')
 	NS=GPX10
-	if not len(trksegs): # try GPX11 namespace otherwise
+	if not trksegs: # try GPX11 namespace otherwise
 		trksegs=etree.findall('.//'+GPX11+'trkseg')
 		NS=GPX11
+	if not trksegs: # try without any namespace
+		trksegs=etree.findall('.//'+'trkseg')
+		NS=""
 	trk=read_all_segments(trksegs,tzname=tzname,ns=NS)
 	trk=reduce_points(trk,npoints=npoints)
 	trk=eval_dist_velocity(trk)
@@ -238,14 +241,8 @@ def google_text_encode_data(trk,x,y,min_x,max_x,min_y,max_y,metric=True):
 		mlpkm,fpm=1.0,1.0
 	else:
 		mlpkm,fpm=milesperkm,feetperm
-	if max_x != min_x:
-		xenc=lambda x: google_ext_encode((x-min_x)*4095/(max_x-min_x))
-	else:
-		xenc=lambda x: google_ext_encode(0)
-	if max_y != min_y:
-		yenc=lambda y: google_ext_encode((y-min_y)*4095/(max_y-min_y))
-	else:
-		yenc=lambda y: google_ext_encode(0)
+	xenc=lambda x: "%.1f"%x
+	yenc=lambda y: "%.1f"%y
 	data='&chd=t:'+join([ join([xenc(p[x]*mlpkm) for p in seg],',')+\
 				'|'+join([yenc(p[y]*fpm) for p in seg],',') \
 			for seg in trk if len(seg) > 0],'|')
@@ -258,8 +255,14 @@ def google_ext_encode_data(trk,x,y,min_x,max_x,min_y,max_y,metric=True):
 		mlpkm,fpm=1.0,1.0
 	else:
 		mlpkm,fpm=milesperkm,feetperm
-	xenc=lambda x: google_ext_encode((x-min_x)*4095/(max_x-min_x))
-	yenc=lambda y: google_ext_encode((y-min_y)*4095/(max_y-min_y))
+	if max_x != min_x:
+		xenc=lambda x: google_ext_encode((x-min_x)*4095/(max_x-min_x))
+	else:
+		xenc=lambda x: google_ext_encode(0)
+	if max_y != min_y:
+		yenc=lambda y: google_ext_encode((y-min_y)*4095/(max_y-min_y))
+	else:
+		yenc=lambda y: google_ext_encode(0)
 	data='&chd=e:'+join([ join([xenc(p[x]*mlpkm) for p in seg],'')+\
 				','+join([yenc(p[y]*fpm) for p in seg],'') \
 			for seg in trk if len(seg) > 0],',')
@@ -269,6 +272,8 @@ def google_chart_url(trk,x,y,metric=True):
 	if x != var_dist or y != var_ele:
 		print 'only distance-elevation profiles are supported in --google mode'
 		return
+	if not trk:
+		raise ValueError("Parsed track is empty")
 	if metric:
 		ele_units,dist_units='m','km'
 		mlpkm,fpm=1.0,1.0
