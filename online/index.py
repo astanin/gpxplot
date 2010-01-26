@@ -18,6 +18,9 @@ max_gpx_size = 1048576
 class GPXSizeError (Exception):
 	pass
 
+class NoAltitudeData (Exception):
+    pass
+
 def plot_on_request(request):
 	"Process POST request with GPX data. Return a URL of the plot."
 	imperial=request.get('imperial')
@@ -55,6 +58,13 @@ def plot_on_request(request):
 	while not url:
 		try:
 			trk=parse_gpx_data(gpxdata,npoints=npoints)
+			y=var_ele
+			max_ele=max([max([p[y] for p in s]) for s in trk if len(s) > 0])
+			min_ele=min([min([p[y] for p in s]) for s in trk if len(s) > 0])
+			if abs(max_ele) < 1e-3 and abs(min_ele) < 1e-3:
+				msg = 'File does not contain altitude data ' \
+						+ 'or it is flat sea level. Nothing to plot.'
+				raise NoAltitudeData(msg)
 			url=google_chart_url(trk,var_dist,var_ele,metric=metric)
 		except OverflowError, e:
 			npoints -= 100
@@ -78,6 +88,9 @@ class MainPage(webapp.RequestHandler):
 				  '<br/>Reduce file size with gpsbabel or plot it offline with a ' + \
 				  'stand-alone version of gpxplot.'
 			content['error'] = msg
+			logging.error(e)
+		except NoAltitudeData, e:
+			content['error'] = e.message
 			logging.error(e)
 		except OverQuotaError, e:
 			msg = 'Application exceeded free quota. Try again later.'
