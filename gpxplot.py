@@ -238,8 +238,14 @@ def google_text_encode_data(trk,x,y,min_x,max_x,min_y,max_y,metric=True):
 		mlpkm,fpm=1.0,1.0
 	else:
 		mlpkm,fpm=milesperkm,feetperm
-	xenc=lambda x: "%.1f"%x
-	yenc=lambda y: "%.1f"%y
+	if max_x != min_x:
+		xenc=lambda x: google_ext_encode((x-min_x)*4095/(max_x-min_x))
+	else:
+		xenc=lambda x: google_ext_encode(0)
+	if max_y != min_y:
+		yenc=lambda y: google_ext_encode((y-min_y)*4095/(max_y-min_y))
+	else:
+		yenc=lambda y: google_ext_encode(0)
 	data='&chd=t:'+join([ join([xenc(p[x]*mlpkm) for p in seg],',')+\
 				'|'+join([yenc(p[y]*fpm) for p in seg],',') \
 			for seg in trk if len(seg) > 0],'|')

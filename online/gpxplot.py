@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# vim: set fileencoding=utf8 ts=4 sw=4:
+# vim: set fileencoding=utf8 ts=4 sw=4 noexpandtab:
 
 # (c) Sergey Astanin <s.astanin@gmail.com> 2008
 
@@ -216,7 +216,12 @@ def parse_gpx_data(gpxdata,tzname=None,npoints=None):
 	return trk
 
 def read_gpx_trk(filename,tzname,npoints):
-	gpx=open(filename).read()
+	if filename == "-":
+		gpx=sys.stdin.read()
+		debug("length(gpx) from stdin = %d" % len(gpx))
+	else:
+		gpx=open(filename).read()
+		debug("length(gpx) from file = %d" % len(gpx))
 	return parse_gpx_data(gpx,tzname,npoints)
 
 def google_ext_encode(i):
@@ -247,8 +252,14 @@ def google_ext_encode_data(trk,x,y,min_x,max_x,min_y,max_y,metric=True):
 		mlpkm,fpm=1.0,1.0
 	else:
 		mlpkm,fpm=milesperkm,feetperm
-	xenc=lambda x: google_ext_encode((x-min_x)*4095/(max_x-min_x))
-	yenc=lambda y: google_ext_encode((y-min_y)*4095/(max_y-min_y))
+	if max_x != min_x:
+		xenc=lambda x: google_ext_encode((x-min_x)*4095/(max_x-min_x))
+	else:
+		xenc=lambda x: google_ext_encode(0)
+	if max_y != min_y:
+		yenc=lambda y: google_ext_encode((y-min_y)*4095/(max_y-min_y))
+	else:
+		yenc=lambda y: google_ext_encode(0)
 	data='&chd=e:'+join([ join([xenc(p[x]*mlpkm) for p in seg],'')+\
 				','+join([yenc(p[y]*fpm) for p in seg],'') \
 			for seg in trk if len(seg) > 0],',')
@@ -286,6 +297,8 @@ def print_gpx_trk(trk,file=sys.stdout,metric=True):
 	else:
 		f.write('# time(ISO) elevation(ft) distance(miles) velocity(miles/h)\n')
 		km,m=milesperkm,feetperm
+	if not trk:
+		return
 	for seg in trk:
 		if len(seg) == 0:
 			continue
