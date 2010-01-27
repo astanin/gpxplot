@@ -112,12 +112,12 @@ def distance(p1,p2):
 	dist=2*R*asin(sqrt(h))
 	return dist
 
-def read_all_segments(trksegs,tzname=None,ns=GPX10):
+def read_all_segments(trksegs,tzname=None,ns=GPX10,pttag='trkpt'):
 	trk=[]
 	for seg in trksegs:
 		s=[]
 		prev_ele,prev_time=0.0,None
-		trkpts=seg.findall(ns+'trkpt')
+		trkpts=seg.findall(ns+pttag)
 		for pt in trkpts:
 			lat=float(pt.attrib['lat'])
 			lon=float(pt.attrib['lon'])
@@ -204,16 +204,26 @@ def parse_gpx_data(gpxdata,tzname=None,npoints=None):
 				except:
 					print 'this script needs ElementTree (Python>=2.5)'
 					sys.exit(EXIT_EDEPENDENCY)
+
+	def find_trksegs_or_route(etree, ns):
+		trksegs=etree.findall('.//'+ns+'trkseg')
+		if trksegs:
+			return trksegs, "trkpt"
+		else: # try to display route if track is missing
+			rte=etree.findall('.//'+ns+'rte')
+			return rte, "rtept"
+
+	# try GPX10 namespace first
 	etree=ET.XML(gpxdata)
-	trksegs=etree.findall('.//'+GPX10+'trkseg')
+	trksegs,pttag=find_trksegs_or_route(etree, GPX10)
 	NS=GPX10
 	if not trksegs: # try GPX11 namespace otherwise
-		trksegs=etree.findall('.//'+GPX11+'trkseg')
+		trksegs,pttag=find_trksegs_or_route(etree, GPX11)
 		NS=GPX11
 	if not trksegs: # try without any namespace
-		trksegs=etree.findall('.//'+'trkseg')
+		trksegs,pttag=find_trksegs_or_route(etree, "")
 		NS=""
-	trk=read_all_segments(trksegs,tzname=tzname,ns=NS)
+	trk=read_all_segments(trksegs,tzname=tzname,ns=NS,pttag=pttag)
 	trk=reduce_points(trk,npoints=npoints)
 	trk=eval_dist_velocity(trk)
 	return trk
