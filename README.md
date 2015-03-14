@@ -98,7 +98,7 @@ $ ./gpxplot.py -g -x time -y elevation test.gpx
 ```
 
 it will try to plot elevation-against-time profile for given track.
-You need [http://gnuplot-py.sourceforge.net/ gnuplot.py] installed run this example.
+You need [gnuplot.py](http://gnuplot-py.sourceforge.net/) installed run this example.
 A new window with a plot will open.
 
 If you have only `gnuplot` installed, but not `gnuplot.py`, you can print the gnuplot script to standard output.
