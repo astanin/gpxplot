@@ -12,20 +12,22 @@ It can print data in tabular form suitable for plotting by external plotting too
 It can also plot trip profile directly using gnuplot (see options `-g` and `-o`).
 
 Features:
-	* using haversine formula to calculate distances (spherical Earth)
-	* support of multi-segment (discontinuous) tracks
-	* gnuplot support:
-		* generate plots if gnuplot.py is available
-		* generate gnuplot script if gnuplot.py is not available
-		* plot interactively and plot-to-file modes
-	* ~~Google Chart API support~~ _DEPRECATED_
-		* ~~print URL or the plot~~ _DEPRECATED_
-	* tabular track profile data can be generated
-	* metric and English units
-	* timezone support
+
+ * using haversine formula to calculate distances (spherical Earth)
+ * support of multi-segment (discontinuous) tracks
+ * gnuplot support:
+   * generate plots if gnuplot.py is available
+   * generate gnuplot script if gnuplot.py is not available
+ * plot interactively and plot-to-file modes
+ * ~~Google Chart API support~~ _DEPRECATED_
+   * ~~print URL or the plot~~ _DEPRECATED_
+ * tabular track profile data can be generated
+ * metric and English units
+ * timezone support
 
 ~~You can also use `gpxplot` online, please check [gpxplot](http://gpxplot.appspot.com) page.
 There is also [a simple API](http://code.google.com/p/gpxplot/source/detail?r=19) for the web script.~~
+
 _The online version may stop working without notice,
 because image-based Google Charts
 [are deprecated](http://googledevelopers.blogspot.it/2012/04/changes-to-deprecation-policies-and-api.html)_
