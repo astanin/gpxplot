@@ -63,7 +63,7 @@ Please visit [gpxplot.appspot.com](http://gpxplot.appspot.com/) to plot your GPX
 It should be straightforward, but online version is less powerful than the stand-alone script.
 _This feauture is deprecated_
 
-## Web API (DEPRECATED)
+### Web API (DEPRECATED)
 
 If you want to plot profiles for your tracks automatically,
 but don't want to install the script, you can use web API.
@@ -85,9 +85,9 @@ Also, Google App Engine is not very good at processing big files (1 MB and more)
 Incompatible changes to the API correspond will be reflected in the second version number (0.*1*.2 ⇒ 0.*2*.0).
 
 Web API versions:
-[0.1](http://code.google.com/p/gpxplot/source/detail?r=17),
-[0.1.1](http://code.google.com/p/gpxplot/source/detail?r=18),
-[0.1.2](http://code.google.com/p/gpxplot/source/detail?r=19).
+[0.1](https://github.com/astanin/gpxplot/commit/4a5c9e6702916b25e42e7967cb52a1f0bcab5a9a),
+[0.1.1](https://github.com/astanin/gpxplot/commit/fa5801bc091b6432d4d18b1c99da4d4becc8f460),
+[0.1.2](https://github.com/astanin/gpxplot/commit/3dba6769fc160b6cbe5b4a16b644fa22778b52a3).
 
 ## Examples
 
