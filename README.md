@@ -82,7 +82,7 @@ output=png" alt="Elevation profile" width="600" height="400">
 
 Availability of this service is subject to free quotas on Google App Engine.
 Also, Google App Engine is not very good at processing big files (1 MB and more).
-Incompatible changes to the API correspond will be reflected in the second version number (0.*1*.2 ⇒ 0.*2*.0). 
+Incompatible changes to the API correspond will be reflected in the second version number (0.*1*.2 ⇒ 0.*2*.0).
 
 Web API versions:
 [0.1](http://code.google.com/p/gpxplot/source/detail?r=17),
@@ -116,7 +116,7 @@ To save the plot to file use `-o filename`:
 
 The plot generated may look like this:
 
-![](http://gpxplot.googlecode.com/files/track.png)
+![](doc/images/track.png)
 
 To plot using Google Chart API use `--google`:
 
@@ -126,7 +126,7 @@ To plot using Google Chart API use `--google`:
 
 It will print a long URL, which points to the PNG image with a plot:
 
-![](http://gpxplot.googlecode.com/files/gpxplot-google-chart-example-1.png)
+![](doc/images/gpxplot-google-chart-example-1.png)
 
 A small tip: unix shell considers “&” symbols in the URL as an “end of command” markers.
 To avoid it, quote the URL properly in shell scripts.
@@ -136,12 +136,12 @@ For example, to view the plot in the browser, the shell command is
 firefox "$(gpxplot.py -google -n 200 -E test.gpx)"
 ```
 
-Please note that the number of points was reduced to approximately 200 (option `-n 200`) 
+Please note that the number of points was reduced to approximately 200 (option `-n 200`)
 and the units are miles/feet (option `-E`).
 
 ## Tips & Tricks
 
-  * Please note that time or elevation data may be missing from the GPX file. 
+  * Please note that time or elevation data may be missing from the GPX file.
     Such tracks may be produced, for example, by Garmin devices,
     if you use their [Save track](http://www.gpsmap.net/GarminHints.html#GarminSaveFunction) function
     (use their ACTIVE LOG instead).
@@ -166,6 +166,6 @@ and the units are miles/feet (option `-E`).
     ```
     cat my-track.gpx | \
     gpsbabel -i gpx -f - -x position,distance=100m -o gpx -F - | \
-    gpxplot.py --gprint -x dist -y vel - | \ 
+    gpxplot.py --gprint -x dist -y vel - | \
     gnuplot -persist -
     ```
